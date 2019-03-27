@@ -1,0 +1,9 @@
+/* istanbul ignore next */
+export default () => ({
+  restrict: 'E',
+  template:
+    '<div class="header-actions-row" active-link ng-click="scope.blacklistUser()"' +
+    ' translate="blacklist.performAction"></div>' +
+    '<div class="header-actions-row" active-link ng-click="scope.alertModerator()"' +
+    'translate="moderator.alert"></div>',
+});

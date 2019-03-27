@@ -1,0 +1,252 @@
+import store from 'Store/store';
+import {pushMembers} from 'Store/members/members.actions';
+
+/*
+ * Manage profile display
+ */
+export default angular
+  .module('profileDisplay.controller', [])
+  .controller('ProfileDisplayController', function(
+    $scope,
+    $state,
+    $stateParams,
+    $q,
+    BlacklistApi,
+    $window,
+    $location,
+    ActivitiesService,
+    UserService,
+    GentlemanBadgeService,
+    USER_INIT_CONFIG,
+    RefList,
+    IncognitoService
+  ) {
+    'ngInject';
+
+    $scope.navCtrl.data.pageType = GentlemanBadgeService.TYPE_PAGES.display;
+    this.isBadgeGentleman = false;
+    this.openMutualMatch = false;
+    this.hasMutualMatch = false;
+    this.hasSentMatch = false;
+    this.hasReceivedMatch = false;
+
+    const sendActivity = (type, index) => {
+      if (this.actions[index].closed) {
+        return;
+      }
+      if (type === 'favorites') {
+        if (this.hasReceivedMatch) {
+          this.openMutualMatch = $scope.hasMutualMatch = true;
+        }
+
+        /**
+         * Used by the profile swipe, the hasFavedOutside boolean allows to
+         * know - when the user goes back to the profile-swipe state - if the
+         * profile needs to be swiped directly.
+         */
+        store.dispatch(
+          pushMembers([
+            {
+              aboid: $scope.member.aboid,
+              hasBeenFavedOutside: true,
+            },
+          ])
+        );
+      }
+      this.actions[index].closed = true;
+      ActivitiesService.send(type, $scope.member.aboid);
+      this.actionsDisplayed--;
+    };
+
+    const mergeActivities = activities => {
+      _.each(this.actions, action => {
+        let closed = !!activities[action.type];
+        action.closed = closed;
+
+        if (closed) {
+          this.actionsDisplayed--;
+        }
+      });
+    };
+
+    const setNavigation = () => {
+      if (!$scope.navCtrl) {
+        return;
+      }
+
+      $scope.navCtrl.data.headerActions = {
+        name: 'profile-display-header-actions',
+        scope: {
+          blacklistUser: () => {
+            this.hasAskedForBlacklist = !this.hasAskedForBlacklist;
+          },
+          alertModerator: () => {
+            $state.go('moderator-alert', {
+              aboid: $stateParams.aboid,
+              target: 'profile',
+            });
+          },
+        },
+      };
+
+      let venusParam = _.get($location.search(), 'venus', 0);
+      if (venusParam) {
+        $scope.navCtrl.data.goTo = () => {
+          $location.search({});
+          $location.path('/venus');
+        };
+      }
+
+      $scope.navCtrl.data.actionGentlemanPopup = open => {
+        $scope.navCtrl.data.openGentlemanPopup = open;
+        this.openGentlemanPopup = open;
+      };
+      this.actionGentlemanPopup = $scope.navCtrl.data.actionGentlemanPopup;
+    };
+    setNavigation();
+
+    const isWinkFromToday = interaction => {
+      let today = new Date();
+      let winkDate = new Date(interaction.date);
+
+      return (
+        winkDate.getDate() === today.getDate() &&
+        winkDate.getMonth() === today.getMonth() &&
+        winkDate.getFullYear() === today.getFullYear()
+      );
+    };
+
+    const checkInteractions = member => {
+      const interactions = member.interactions || [];
+      interactions
+        .filter(interaction => interaction.direction === 'sent')
+        .map(interaction => {
+          if (interaction.type === 'blacklist') {
+            this.isBlacklisted = true;
+          } else if (interaction.type === 'rating') {
+            this.actions[1].closed = true;
+            this.hasSentMatch = true;
+          } else if (interaction.type === 'wink') {
+            this.actions[0].closed = isWinkFromToday(interaction);
+          }
+        });
+      interactions
+        .filter(interaction => interaction.direction === 'received')
+        .filter(interaction => interaction.type === 'rating')
+        .forEach(() => {
+          this.hasReceivedMatch = true;
+        });
+      this.hasMutualMatch = this.hasSentMatch && this.hasReceivedMatch;
+    };
+
+    const errorProfileManagement = response => {
+      let errorCode = _.get(response, 'data.errors[0].code', false);
+      if (errorCode) {
+        this.showProfileErrorLayer = true;
+        this.errorCode = errorCode;
+      }
+    };
+
+    this.carouselCurrentSlide = 0;
+
+    $stateParams.aboid && ActivitiesService.send('visits', $stateParams.aboid);
+
+    this.actionsDisplayed = 3;
+    this.actions = [
+      {
+        type: 'winks',
+        onClick: sendActivity,
+      },
+      {
+        type: 'favorites',
+        onClick: sendActivity,
+      },
+      {
+        type: 'messages',
+        onClick() {
+          $state.go('inbox.thread', {aboid: $scope.member.aboid});
+        },
+      },
+    ];
+
+    $q.all({
+      reflist: RefList.get(USER_INIT_CONFIG.kvk),
+      user: UserService.getMember($stateParams.aboid),
+      activities: ActivitiesService.get($stateParams.aboid),
+      incognito: IncognitoService.isActive(),
+    }).then(
+      response => {
+        if (response.user.status === 'disabled') {
+          this.showProfileErrorLayer = true;
+          this.errorCode =
+            response.user.deactivationReason === 'fraud_user'
+              ? 'ACCOUNT_DISABLED_FRAUD_USER'
+              : 'ACCOUNT_DISABLED_CLOSED_BY_USER';
+          return;
+        }
+        $scope.reflist = response.reflist;
+        $scope.initialDataReceived = true;
+        $scope.member = response.user;
+        $scope.incognito = response.incognito.on ? response.incognito : null;
+        $scope.navCtrl.data.incognito = $scope.incognito;
+        if ($scope.member.gentlemanBadge) {
+          $scope.navCtrl.data.isBadgeGentleman = GentlemanBadgeService.shouldBadgeAppear(
+            $scope.member.gentlemanBadge.label,
+            GentlemanBadgeService.TYPE_PAGES.display
+          );
+          $scope.navCtrl.data.badge = $scope.member.gentlemanBadge.label;
+        }
+
+        mergeActivities(response.activities);
+        checkInteractions($scope.member);
+        $scope.hasMutualMatch = this.hasMutualMatch;
+      },
+      error => {
+        errorProfileManagement(error);
+      }
+    );
+
+    this.goToViewer = index => {
+      if (!$scope.member.pictures || $scope.member.pictures.length < 1) {
+        return;
+      }
+      $state.go('profile-viewer', {aboid: $scope.member.aboid, index});
+    };
+
+    const prepareSwipeAtBlacklist = blacklist => {
+      /**
+       * Used by the profile swipe, the hasBeenBlockedOutside boolean allows to
+       * know - when the user goes back to the profile-swipe state - if the
+       * profile needs to be swiped directly.
+       */
+      store.dispatch(
+        pushMembers([
+          {
+            aboid: $scope.member.aboid,
+            hasBeenBlockedOutside: blacklist,
+          },
+        ])
+      );
+    };
+
+    this.blacklistUser = () => {
+      BlacklistApi.performOnUser($stateParams.aboid).then(() => {
+        this.isBlacklisted = true;
+        UserService.deleteMemberFromCache($stateParams.aboid);
+        prepareSwipeAtBlacklist(true);
+      });
+      this.hasAskedForBlacklist = false;
+    };
+
+    this.unBlacklistUser = () => {
+      BlacklistApi.unBlacklistUser($stateParams.aboid).then(() => {
+        this.isBlacklisted = false;
+        UserService.deleteMemberFromCache($stateParams.aboid);
+        prepareSwipeAtBlacklist(false);
+      });
+    };
+
+    this.cancelBlacklist = () => {
+      this.hasAskedForBlacklist = false;
+    };
+  }).name;

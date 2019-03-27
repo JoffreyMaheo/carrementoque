@@ -1,0 +1,51 @@
+import template from 'App/webapp/modules/profile/display/profile-display.html';
+
+/**
+ * Route: /profile-display
+ */
+export default angular
+  .module('profileDisplay.router', [])
+  .controller('NewProfileDisplayController', function($stateParams, $scope) {
+    'ngInject';
+    $scope.aboid = $stateParams.aboid;
+  })
+  .config(($stateProvider, CONFIG) => {
+    'ngInject';
+    const newProfile = CONFIG.feature_flipping.new_profile_full;
+    const url = '/profile-display/:aboid';
+
+    const oldProfileDisplay = {
+      url,
+      template,
+      controller: 'ProfileDisplayController as profileDisplay',
+      data: {
+        eventOrigin: 'members_profile',
+        showNotifications: false,
+        navigation: {
+          titleBarTemplateUrl:
+            'webapp/modules/navigation/views/title-profile-display.html',
+          isFixed: true,
+          display: false,
+        },
+      },
+    };
+
+    const newProfileDisplay = {
+      url,
+      template: '<profile-full-page aboid="::aboid" class="pf-view" />',
+      controller: 'NewProfileDisplayController',
+      data: {
+        eventOrigin: 'members_profile',
+        // TODO: find a way to have real transitions.
+        // pageTranslateDirection: 'bottom',
+        navigation: {
+          display: false,
+        },
+      },
+    };
+
+    $stateProvider.state(
+      'profile-display',
+      newProfile ? newProfileDisplay : oldProfileDisplay
+    );
+  }).name;

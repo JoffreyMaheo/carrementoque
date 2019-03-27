@@ -1,0 +1,94 @@
+<div ng-if="initialDataReceived" class="scroll-container profile-display">
+  <incognito-bar ng-if="incognito" incognito="incognito"></incognito-bar>
+  <div class="scroll-content">
+
+    <div class="profile-picture viewer" ng-if="::member.mainPicture">
+      <carousel slide-index="profileDisplay.carouselCurrentSlide">
+        <div class="carousel-frame">
+          <div class="carousel-slides">
+            <div carousel-slide class="picture"
+                 ng-repeat="picture in member.pictures | orderBy: 'isMain' : true"
+                 ng-click="profileDisplay.goToViewer($index)"
+                 avatar-displayer="{src: picture.links.medium, aboid: member.aboid}"></div>
+          </div>
+        </div>
+      </carousel>
+      <picture-tag-infos user="member" show-connection-status="true" reflist="reflist.search.me"></picture-tag-infos>
+    </div>
+
+    <div class="no-profile-picture" ng-if="::!member.mainPicture">
+      <div class="no-picture-circle"></div>
+      <div translate="profile_display.no_pictures" translate-values="{PSEUDO: member.nickname}"></div>
+      <div ui-sref="inbox.thread({aboid: member.aboid})" active-link class="button" translate="profile_display.send_message"></div>
+    </div>
+
+    <profile-info></profile-info>
+  </div>
+
+  <div class="scroll-footer">
+    <div class="card-activities-cta-triangle"></div>
+    <div class="card-activities-cta-data-container">
+      <div class="card-activities-cta-text-container">
+        <div class="card-user-name">{{member.nickname}}&nbsp;</div>
+        <div class="online-badge" ng-show="member.online || member.isOnline"></div>
+
+        <div class="card-age-city">
+          {{member.birthDate ? (member.birthDate | age) : member.age}}
+          <span translate="global.units.age"></span>,&nbsp;<span class="city">{{member.geo.city.name}}</span>
+        </div>
+      </div>
+
+      <div class="card-activities-cta-container" ng-if="!profileDisplay.isBlacklisted">
+        <div ng-repeat="action in profileDisplay.actions"
+            ng-click="action.onClick(action.type, $index)"
+            class="card-activities-cta {{action.type}}"
+            active-link
+            ng-class="{closed: action.closed && $first,
+              premium: member.isPremium,
+              'margin-left': !$first,
+              activated: action.closed && action.type === 'favorites',
+              'activated-fav': action.closed && action.type === 'favorites'}"></div>
+      </div>
+      <div class="card-activities-cta-container" ng-if="profileDisplay.isBlacklisted">
+        <div class="card-activities-cta unlock margin-right"
+             active-link
+             ng-click="profileDisplay.unBlacklistUser()">
+        </div>
+      </div>
+    </div>
+
+    <div class="header-action-popin" ng-show="profileDisplay.hasAskedForBlacklist">
+      <div class="guide" translate="blacklist.askForBlacklisting" translate-values="{NICKNAME: member.nickname}"></div>
+      <div class="button-execute"
+           translate="blacklist.perform"
+           ng-click="profileDisplay.blacklistUser()"
+           active-link></div>
+      <div class="button-cancel"
+           translate="global.cancel"
+           ng-click="profileDisplay.cancelBlacklist()"
+           active-link></div>
+    </div>
+  </div>
+</div>
+
+<div class="gentleman-background"
+     feature-flip="gentleman_badge"
+     ng-click="profileDisplay.actionGentlemanPopup(false)"
+     ng-if="profileDisplay.openGentlemanPopup"></div>
+
+<!-- Mutual Match Layer-->
+<mutual-match-confirmation-layer
+  ng-if="member.aboid"
+  is-open="profileDisplay.openMutualMatch"
+  other-member-aboid="member.aboid"
+></mutual-match-confirmation-layer>
+
+<profile-error-layer ng-if="profileDisplay.showProfileErrorLayer"
+                     is-open="profileDisplay.showProfileErrorLayer"
+                     code="profileDisplay.errorCode"
+                     member="member"
+></profile-error-layer>
+
+<div ng-if="!initialDataReceived" class="loader-container">
+  <div class="loader loader-big color-animation"></div>
+</div>

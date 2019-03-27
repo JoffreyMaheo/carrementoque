@@ -1,0 +1,48 @@
+import UserCriterion from 'Common/modules/user/criteria/user-criterion-model';
+
+export default /* @ngInject */ UserCriteriaOrders => ({
+  addCriteria(criteria, order, isEditing, isEmptyOrdered) {
+    let list = [];
+
+    order.forEach(key => {
+      let criterion = criteria[key] || (isEditing && new UserCriterion(key));
+      if (isEditing || (criterion && !criterion.isKeepForMe)) {
+        list.push(criterion);
+      }
+    });
+
+    if (isEditing && isEmptyOrdered) {
+      list = _.orderBy(list, 'isKeepForMe', 'asc');
+    }
+
+    return list;
+  },
+  createLists(user, isEditing) {
+    let target = isEditing ? 'EDIT_ORDER' : 'DISPLAY_ORDER';
+    return {
+      profile: this.addCriteria(
+        user.criteria.profile,
+        UserCriteriaOrders[target].PROFILE_ORDER,
+        isEditing,
+        true
+      ),
+      search: this.addCriteria(
+        user.criteria.search,
+        UserCriteriaOrders[target].SEARCH_ORDER,
+        isEditing,
+        true
+      ),
+      activities: this.addCriteria(
+        user.criteria.profile,
+        UserCriteriaOrders.ACTIVITIES_ORDER,
+        isEditing,
+        true
+      ),
+      thematic: this.addCriteria(
+        user.thematicAnnounces,
+        UserCriteriaOrders.THEMATIC_ORDER,
+        isEditing
+      ),
+    };
+  },
+});

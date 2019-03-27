@@ -1,0 +1,35 @@
+.profile-display {
+  // used because IE doesn't understan padding-bottom on scroll-content
+  .fake-block {
+    height: 50px;
+  }
+
+  .no-profile-picture {
+    padding: $baseSpacing * 4;
+  }
+
+  .scroll-footer {
+    position: relative;
+  }
+
+  .card-user-name {
+    font-size: 1.1rem;
+  }
+
+  .city {
+    display: inline-block;
+  }
+
+  // we set a custom triangle if landscape because svg can't have right proportions
+  .card-activities-cta-triangle {
+    @media screen and (min-width: 420px) {
+      height: 50px;
+      top: -49px;
+      background-image: none;
+      border-bottom: 50px solid get-color("white");
+      border-left: 0 solid transparent;
+      border-right: 1000px solid transparent;
+      box-sizing: border-box;
+    }
+  }
+}
